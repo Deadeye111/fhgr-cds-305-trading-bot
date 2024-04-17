@@ -53,14 +53,27 @@ def get_sp500_companies_table(timestamp):
 
 
 if __name__ == "__main__":
-    start_date = '20180101000000'  # Timestamp Format: yyyymmddhhmmss
-    end_date = '20231231000000'    # Timestamp Format: yyyymmddhhmmss
-    site_url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-    timestamps = get_archive_urls_timestamps(site_url, start_date, end_date)
-    
-    print(f"\nScraped {len(timestamps)} timestamps from web archive..")
-    print(f"First Timestamp: {timestamps[0]} | Last Timestamp: {timestamps[-1]}")
+    timestamps_sets = []
+    for i in [('20230101000000', '20231231000000'), ('20230401000000', '20231231000000'), ('20230601000000', '20231231000000'), ('20230801000000', '20231231000000'), ('20231201000000', '20231231000000')]:
+        start_date = i[0]  # Timestamp Format: yyyymmddhhmmss
+        end_date = i[1]  # Timestamp Format: yyyymmddhhmmss
+        site_url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+        timestamps = get_archive_urls_timestamps(site_url, start_date, end_date)
+        
+        print(f"\nScraped {len(timestamps)} timestamps from web archive..")
+        print(f"First Timestamp: {timestamps[0]} | Last Timestamp: {timestamps[-1]}")
 
-    tickers = get_sp500_companies_table(timestamps[0])
-    symbols = tickers['Ticker symbol'].tolist()
-    print(symbols)
+        tickers = get_sp500_companies_table(timestamps[0])
+        symbols = set(tickers['Symbol'].tolist())  # Convert to set for faster operations
+        timestamps_sets.append(symbols)  # Store symbols for this timestamp
+
+    if timestamps_sets:  # Check if there are any timestamps
+        timestamps_common_symbols = set.intersection(*timestamps_sets)  # Find common symbols
+        
+        if timestamps_common_symbols:
+            print("\nSymbols present in all timestamps:")
+            print(timestamps_common_symbols)
+        else:
+            print("\nNo common symbols found.")
+    else:
+        print("No timestamps available.")
