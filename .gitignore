@@ -162,3 +162,4 @@ cython_debug/
 # Folder
 data/
 merged_data/
+test_data/
