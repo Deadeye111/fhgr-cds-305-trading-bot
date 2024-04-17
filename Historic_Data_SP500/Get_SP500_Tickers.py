@@ -53,8 +53,8 @@ def get_sp500_companies_table(timestamp):
 
 
 if __name__ == "__main__":
-    start_date = '20150101000000'  # Timestamp Format: yyyymmddhhmmss
-    end_date = '20221231000000'    # Timestamp Format: yyyymmddhhmmss
+    start_date = '20180101000000'  # Timestamp Format: yyyymmddhhmmss
+    end_date = '20231231000000'    # Timestamp Format: yyyymmddhhmmss
     site_url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
     timestamps = get_archive_urls_timestamps(site_url, start_date, end_date)
     
@@ -62,3 +62,5 @@ if __name__ == "__main__":
     print(f"First Timestamp: {timestamps[0]} | Last Timestamp: {timestamps[-1]}")
 
     tickers = get_sp500_companies_table(timestamps[0])
+    symbols = tickers['Ticker symbol'].tolist()
+    print(symbols)
