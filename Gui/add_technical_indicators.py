@@ -11,6 +11,8 @@ from ta.momentum import PercentagePriceOscillator
 from ta.momentum import ROCIndicator
 from ta.volume import ChaikinMoneyFlowIndicator
 from ta.trend import ADXIndicator
+from ta.volatility import AverageTrueRange
+from ta.volatility import BollingerBands
 
 
 #Simple Moving Average - SMA
@@ -157,8 +159,23 @@ def get_ADX(df, window):
         df[f"adx_neg_{i}"] = ADXIndicator(df['High'], df['Low'], df['Close'], i).adx_neg()
     return df
 
+#Average True Range - ATR
+def get_ATR(df, window):
+    for i in window:
+        df[f"atr_{i}"] = AverageTrueRange(df['High'], df['Low'], df['Close'], i).average_true_range()
+    return df
 
-def add_technical_indicators(data, func_windows=[5,7,9,11,13,15,17,19,21]):
+#Bollinger Bands
+def get_BollingerBands(df, window):
+    for i in window:
+        bb = BollingerBands(df['Close'], window=i, window_dev=2)
+        df[f"bb_bbm_{i}"] = bb.bollinger_mavg()
+        df[f"bb_bbh_{i}"] = bb.bollinger_hband()
+        df[f"bb_bbl_{i}"] = bb.bollinger_lband()
+    return df
+
+
+def add_technical_indicators(data, func_windows=[3,5,7,9,11,13,15,17,19,21]):
     #calculate all the indicators
     data = get_SMA(data, func_windows)
     data = get_EMA(data, func_windows)
@@ -175,4 +192,6 @@ def add_technical_indicators(data, func_windows=[5,7,9,11,13,15,17,19,21]):
     data = get_ROC(data, func_windows)
     data = get_CMF(data, func_windows)
     data = get_ADX(data, func_windows)
+    data = get_ATR(data, func_windows)
+    data = get_BollingerBands(data, func_windows)
     return data
