@@ -57,10 +57,6 @@ def update_portfolio(trading_bot_df, stock_portfolio, cash_balance, date, thresh
     '''
     df_filtered_by_date = trading_bot_df[trading_bot_df['Date'] == date]  # Filter DataFrame for the given date
     
-    # Initialize empty lists to store buy and sell transactions
-    buy_transactions = []
-    sell_transactions = []
-    
     # Iterate over rows in the DataFrame
     for index, row in df_filtered_by_date.iterrows():
         ticker = row['Ticker']
@@ -76,22 +72,21 @@ def update_portfolio(trading_bot_df, stock_portfolio, cash_balance, date, thresh
 
         # Decide whether to buy, sell, or hold based on threshhold
         if best_action == "Buy" and max_prediction >= threshhold and cash_balance-row['Close'] > 0:
-            buy_transactions.append(ticker)
-            cash_balance -= row['Close']  # Deduct the cost of the stock from cash balance
-        elif best_action == "Sell" and max_prediction >= threshhold and ticker in stock_portfolio.keys():
-            sell_transactions.append(ticker)
-            cash_balance += row['Close']  # Add the selling price to cash balance
-    
-     # Update the stock portfolio by removing sold stocks and adding bought stocks
-    for ticker in sell_transactions:
-        if ticker in stock_portfolio:
-            del stock_portfolio[ticker]
+            if not only_one_of_each_stock and ticker in stock_portfolio:
+                stock_portfolio[ticker] += 1
+                cash_balance -= row['Close']  # Deduct the cost of the stock from cash balance
+            elif ticker not in stock_portfolio:
+                stock_portfolio[ticker] = 1
+                cash_balance -= row['Close']  # Deduct the cost of the stock from cash balance
 
-    for ticker in buy_transactions:
-        if ticker in stock_portfolio and not only_one_of_each_stock:
-            stock_portfolio[ticker] += 1
-        else:
-            stock_portfolio[ticker] = 1
+        elif best_action == "Sell" and max_prediction >= threshhold and ticker in stock_portfolio.keys():
+            if ticker in stock_portfolio:
+                if stock_portfolio[ticker] == 1:
+                    del stock_portfolio[ticker]
+                    cash_balance += row['Close']  # Add the selling price to cash balance
+                else:
+                    stock_portfolio[ticker] -= 1
+                    cash_balance += row['Close']  # Add the selling price to cash balance
     
     return stock_portfolio, cash_balance
 
@@ -117,10 +112,10 @@ error_placeholder = st.empty()
 
 bot_settings_col1, bot_settings_col2 = st.columns(2)
 # starting cash balance
-starting_balance = bot_settings_col1.number_input("Select a balance", min_value=1000, max_value=1000000)
+starting_balance = bot_settings_col1.number_input("Select a starting balance ($)", min_value=1000, max_value=1000000)
 
 # tick rate
-tick_rate = bot_settings_col2.number_input("Select tickrate", min_value=0.3, max_value=1.0, step=0.1, value=0.5)
+tick_rate = bot_settings_col2.number_input("Select tickrate (seconds)", min_value=0.2, max_value=1.0, step=0.1, value=0.4)
 
 st.markdown("---")
 
@@ -197,8 +192,7 @@ if bot_start and (start_date < end_date):
 
                 portfolio_fig = go.Figure(data=[go.Pie(labels=list(stock_portfolio.keys()), values=list(stock_portfolio.values()))])
                 portfolio_fig.update_layout(
-                    title="Stock Portfolio Distribution",
-                    title_x=0.5  # Center the title
+                    title="Stock Portfolio Distribution (Quantity per stock)"
                 )
                 st.plotly_chart(portfolio_fig)
 
