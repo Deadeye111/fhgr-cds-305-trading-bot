@@ -22,7 +22,7 @@ st.set_page_config(
 )
 
 @st.cache_data
-def get_sp500_dataset(path = '../CNN/test_data/^GSPC.csv') -> pd.DataFrame:
+def get_dataset(path) -> pd.DataFrame:
     if os.path.exists(path):
         df = pd.read_csv(path)
         return df
@@ -30,12 +30,76 @@ def get_sp500_dataset(path = '../CNN/test_data/^GSPC.csv') -> pd.DataFrame:
         print("Path:", path, "does not exist!")
 
 @st.cache_data
-def filter_sp500_dataset(df, start_date, end_date):
+def filter_dataset_date(df, start_date, end_date) -> pd.DataFrame:
     df = df[(pd.to_datetime(df["Date"]) >= pd.to_datetime(start_date)) & 
                         (pd.to_datetime(df["Date"]) <= pd.to_datetime(end_date))]
     return df
 
-sp500_df = get_sp500_dataset()
+def get_current_portfolio_value(trading_bot_df, portfolio, cash_balance, date):
+    portfolio_value = cash_balance  # Initialize portfolio value with cash balance
+
+    if portfolio:
+        for stock_symbol, quantity in portfolio.items():
+            stock_data = trading_bot_df[(trading_bot_df['Ticker'] == stock_symbol) & (trading_bot_df['Date'] == date)]  # Filter the DataFrame for the specific stock on the given date
+
+            if not stock_data.empty:
+                close_price = stock_data.iloc[0]['Close']
+                stock_value = close_price * quantity
+                
+                portfolio_value += stock_value  # Add the stock value to the overall portfolio value
+
+    return portfolio_value
+
+def update_portfolio(trading_bot_df, stock_portfolio, cash_balance, date, threshhold, only_one_of_each_stock):
+    '''
+    This function dynamically adjusts a stock portfolio based on predictions and a specified threshhold,
+    executing buy and sell transactions while ensuring available cash balance.
+    '''
+    df_filtered_by_date = trading_bot_df[trading_bot_df['Date'] == date]  # Filter DataFrame for the given date
+    
+    # Initialize empty lists to store buy and sell transactions
+    buy_transactions = []
+    sell_transactions = []
+    
+    # Iterate over rows in the DataFrame
+    for index, row in df_filtered_by_date.iterrows():
+        ticker = row['Ticker']
+        
+        predictions = {
+            'Buy': row['Prediction_0'],   # Buy
+            'Sell': row['Prediction_1'],  # Sell
+            'Hold': row['Prediction_2']   # Hold
+        }
+
+        max_prediction = max(predictions.values())  # Get max probability
+        best_action = max(predictions, key=predictions.get)  # Get best action with highest probability
+
+        # Decide whether to buy, sell, or hold based on threshhold
+        if best_action == "Buy" and max_prediction >= threshhold and cash_balance-row['Close'] > 0:
+            buy_transactions.append(ticker)
+            cash_balance -= row['Close']  # Deduct the cost of the stock from cash balance
+        elif best_action == "Sell" and max_prediction >= threshhold and ticker in stock_portfolio.keys():
+            sell_transactions.append(ticker)
+            cash_balance += row['Close']  # Add the selling price to cash balance
+    
+     # Update the stock portfolio by removing sold stocks and adding bought stocks
+    for ticker in sell_transactions:
+        if ticker in stock_portfolio:
+            del stock_portfolio[ticker]
+
+    for ticker in buy_transactions:
+        if ticker in stock_portfolio and not only_one_of_each_stock:
+            stock_portfolio[ticker] += 1
+        else:
+            stock_portfolio[ticker] = 1
+    
+    return stock_portfolio, cash_balance
+
+
+########### Start of Gui ###########
+
+sp500_df = get_dataset(path = '../CNN/test_data/^GSPC.csv')
+trading_bot_df = get_dataset(path = 'predicted_data/predicted_data.csv')
 
 # dashboard title
 st.title("Trading Bot Dashboard")
@@ -52,8 +116,8 @@ end_date = date_filter_col2.date_input("Select end date", value=max_date, min_va
 error_placeholder = st.empty()
 
 bot_settings_col1, bot_settings_col2 = st.columns(2)
-# balance
-balance = bot_settings_col1.number_input("Select a balance", min_value=100, max_value=1000000)
+# starting cash balance
+starting_balance = bot_settings_col1.number_input("Select a balance", min_value=1000, max_value=1000000)
 
 # tick rate
 tick_rate = bot_settings_col2.number_input("Select tickrate", min_value=0.3, max_value=1.0, step=0.1, value=0.5)
@@ -68,35 +132,46 @@ bot_start = button_col1.button("Start / Restart Trading Bot")
 # Bot stop button
 bot_stop = button_col2.button("Stop")
 
+settings_col1, settings_col2 = control_col2.columns(2)
+# Risk threshhold
+risk_threshhold = settings_col1.slider(label="Risk Threshhold", max_value=1.0, min_value=0.34, step=0.01, value=0.75)
+settings_col1.text("Risk Threshhold = minimum CNN prediction probability\nrequired to execute a trade.")
+settings_col2.markdown("")
+settings_col2.markdown("")
+only_one_of_each_stock = settings_col2.checkbox(label="Trading Bot should hold maximum 1 of each stock")
+
 # creating a single-element container
 plots_placeholder = st.empty()
 
-example_stocks = ['IP', 'DVA', 'ORLY', 'CME', 'BR', 'UHS', 'TAP', 'NEM', 'SHW', 'FAST', 'HAL', 'LRCX', 'MO', 'DGX', 'KO', 'FE', 'META', 'IVZ', 'XEL', 'MTB', 'PPL', 'MRK', 'CCI', 'TEL', 'F', 'T', 'WRB', 'NDSN', 'JKHY', 'DRI', 'ZBRA', 'PGR', 'DOV', 'BMY', 'GLW', 'MRO', 'K', 'ISRG', 'LNT', 'EBAY', 'KLAC', 'GNRC', 'CARR', 'PNW', 'LMT', 'AON', 'MRNA', 'NWSA', 'APTV', 'IT', 'IRM', 'MCO', 'RTX', 'INCY', 'BLK', 'DAL', 'BDX', 'AWK', 'COST', 'CBRE', 'TGT', 'TSN', 'DFS', 'ADSK', 'CTRA', 'INTC', 'HAS', 'TSLA', 'BIO', 'CMI', 'TXN', 'CRM', 'STT', 'WTW', 'ALL', 'CHTR', 'CPRT', 'QRVO', 'AIZ', 'MTD', 'CPT', 'CHD', 'TDG', 'TSCO', 'MHK', 'RL', 'EMR', 'ACGL', 'RHI', 'RSG', 'KEYS', 'GEN', 'TMO', 'A', 'EMN', 'CTAS', 'HES', 'MA', 'WRK', 'EL', 'UPS', 'IQV', 'IBM', 'LHX', 'BEN', 'MTCH', 'CSCO', 'GPC', 'PSA', 'ECL', 'ETN', 'ICE', 'CVS', 'AJG', 'HUM', 'SRE', 'L', 'VRSN', 'GIS', 'HON', 'BBWI', 'BALL', 'BRK.B', 'POOL', 'SPGI', 'ETR', 'FANG', 'BBY', 'WEC', 'TFC', 'AMD', 'BKNG', 'CF', 'GRMN', 'WYNN', 'WFC', 'TFX', 'WMT', 'AEE', 'CTVA', 'ALLE', 'ILMN', 'SYK', 'ALK', 'CPB', 'DOW', 'IEX', 'BRO', 'DD', 'BAC', 'NI', 'ZTS', 'AME', 'AVB', 'VTR', 'CL', 'SEE', 'IR', 'NDAQ', 'GPN', 'DHI', 'ROL', 'PCAR', 'DPZ', 'STX', 'URI', 'HOLX', 'CBOE', 'WAB', 'KHC', 'GM', 'FMC', 'SNPS', 'FTNT', 'AMGN', 'EXPD', 'NKE', 'MDLZ', 'BK', 'PTC', 'DE', 'NCLH', 'ROP', 'TMUS', 'CNP', 'MMM', 'LYB', 'BXP', 'MGM', 'CTSH', 'VTRS', 'EVRG', 'GE', 'USB', 'XRAY', 'PXD', 'RF', 'CE', 'MDT', 'RCL', 'PFE', 'MOS', 'EW', 'TECH', 'AVGO', 'KIM', 'MSFT', 'LW', 'C', 'CAG', 'EIX', 'ADI', 'TROW', 'MCHP', 'ODFL', 'TRV', 'ADBE', 'WBD', 'SWKS', 'DIS', 'DXCM', 'MCD', 'PYPL', 'LIN', 'ROST', 'BF.B', 'SNA', 'MNST', 'CDNS', 'PEP', 'EQIX', 'STLD', 'EQR', 'GL', 'AES', 'VZ', 'WAT', 'GOOGL', 'OMC', 'CMA', 'PPG', 'SBUX', 'EXC', 'GS', 'HPQ', 'AMZN', 'COP', 'ABBV', 'EOG', 'HRL', 'TJX', 'VRTX', 'ELV', 'FFIV', 'BKR', 'PARA', 'PNR', 'FTV', 'VFC', 'PKG', 'TPR', 'AIG', 'TDY', 'APH', 'NTAP', 'HST', 'EFX', 'HD', 'V', 'AEP', 'AAL', 'WY', 'ES', 'PEG', 'SLB', 'PFG', 'NSC', 'CAH', 'AKAM', 'FSLR', 'MAA', 'IPG', 'HSY', 'PM', 'ROK', 'ZION', 'NXPI', 'GILD', 'ESS', 'HBAN', 'CRL', 'LH', 'XOM', 'HLT', 'LVS', 'DUK', 'MAR', 'SPG', 'OKE', 'ORCL', 'VLO', 'FOXA', 'KMX', 'ARE', 'LEN', 'WST', 'FDX', 'UNH', 'WM', 'HWM', 'ENPH', 'HIG', 'STZ', 'KMB', 'PG', 'NWS', 'OTIS', 'MCK', 'WMB', 'TER', 'GD', 'CFG', 'IFF', 'PAYX', 'STE', 'NFLX', 'SBAC', 'WBA', 'J', 'BSX', 'LDOS', 'KDP', 'SO', 'UNP', 'MKTX', 'ANSS', 'SEDG', 'AMAT', 'KMI', 'NTRS', 'CAT', 'PEAK', 'JPM', 'PHM', 'FITB', 'MMC', 'MU', 'FLT', 'CHRW', 'LYV', 'TYL', 'NVDA', 'COO', 'MPWR', 'AAPL', 'MSI', 'SJM', 'PNC', 'CSGP', 'NEE', 'WHR', 'PCG', 'ED', 'AZO', 'HCA', 'EPAM', 'CVX', 'O', 'LUV', 'FOX', 'SYY', 'REGN', 'BIIB', 'ALGN', 'CDW', 'CDAY', 'ABT', 'JCI', 'BA', 'FCX', 'FDS', 'TTWO', 'PAYC', 'APD', 'BAX', 'OXY', 'QCOM', 'PSX', 'INTU', 'PH', 'CSX', 'EQT', 'ATO', 'ON', 'ITW', 'REG', 'NOW', 'TT', 'MLM', 'MPC', 'NOC', 'LLY', 'CMG', 'EXPE', 'INVH', 'FRT', 'GOOG', 'ALB', 'DTE', 'CMS', 'TRMB', 'SWK', 'COF', 'ULTA', 'EXR', 'LKQ', 'FIS', 'VMC', 'CTLT', 'ETSY', 'TRGP', 'NUE', 'VRSK', 'D', 'XYL', 'RMD', 'ADM', 'MSCI', 'HII', 'UAL', 'VICI', 'HSIC', 'CINF', 'AMP', 'PWR', 'MAS', 'SYF', 'ANET', 'AOS', 'KEY', 'GWW', 'AMT', 'CCL', 'PRU', 'UDR', 'NRG', 'LOW', 'JNJ', 'AFL', 'BWA', 'SCHW', 'DLR', 'IDXX', 'DHR', 'CLX', 'TXT', 'MET', 'NVR', 'APA', 'MS', 'ADP', 'HPE', 'JNPR', 'CMCSA', 'CI', 'DG', 'DLTR', 'CNC', 'JBHT', 'ACN', 'AVY', 'PLD', 'EA', 'DVN', 'RJF', 'WELL', 'CEG', 'YUM', 'KR', 'AXP', 'ZBH', 'MOH', 'MKC', 'CB', 'WDC', 'CZR', 'AMCR']
-
 if bot_start and (start_date < end_date):
-    sp500_filtered_df = filter_sp500_dataset(sp500_df, start_date, end_date)
-    balance_list = []
-    ticks = 0
-    stock_portfolio = {}
+    sp500_filtered_df = filter_dataset_date(sp500_df, start_date, end_date)
+    trading_bot_filtered_df = filter_dataset_date(trading_bot_df, start_date, end_date)
+    
+    # Initialization of all important variables
+    portfolio_value_list = []  # List with portfolio value per tick
+    cash_balance_list = []  # List with cash balance per tick
+    ticks = 1  # Variable to filter dataframes (every iteration: ticks += 1)
+    stock_portfolio = {}  # stock portfolio: key = ticker, value = quantity
+    cash_balance = starting_balance  # initialize cash balance with starting balance
+    dates = sp500_filtered_df['Date'].to_list()  # List of dates for plotting and looping
 
     # near real-time / live feed simulation
-    while ticks < len(sp500_filtered_df):
+    for current_date in dates:
         
         if bot_stop:
             break
 
         sp500_stream_df = sp500_filtered_df.iloc[:ticks]
 
-        # UPDATE BALANCE HERE
-        balance_list.append(random.randint(10,15))
+        cash_balance_list.append(cash_balance)
 
-        current_date = sp500_filtered_df.iloc[ticks]['Date']
-
-        # UPDATE PORTFOLIO BASED ON BOT
-        for i in random.sample(example_stocks, 1):
-            stock_portfolio[i] = random.randint(1,10)
+        ##### GET CURRENT BALANCE #####
+        # portfolio_value_list = stocks + cash
+        portfolio_value_list.append(get_current_portfolio_value(trading_bot_df, stock_portfolio, cash_balance, date=current_date))  # calculate balance (current porfolio value)
 
         with plots_placeholder.container():
+            
+            st.markdown("---")
 
             # create two columns for charts
             fig_col1, fig_col2 = st.columns(2)
@@ -109,17 +184,15 @@ if bot_start and (start_date < end_date):
 
                 candlestick_fig.update_layout(title="S&P 500 Candlestick Chart",
                                             xaxis_title="Date",
-                                            yaxis_title="Price")
+                                            yaxis_title="Price (USD)")
                 
                 # Disable draggable date filter
                 candlestick_fig.update_xaxes(
                     rangeslider_visible=False,
                     rangebreaks=[
-                        # NOTE: Below values are bound (not single values), ie. hide x to y
                         dict(bounds=["sat", "mon"]),  # hide weekends, eg. hide sat to before mon
                     ]
                 )
-
                 st.plotly_chart(candlestick_fig)
 
                 portfolio_fig = go.Figure(data=[go.Pie(labels=list(stock_portfolio.keys()), values=list(stock_portfolio.values()))])
@@ -130,14 +203,46 @@ if bot_start and (start_date < end_date):
                 st.plotly_chart(portfolio_fig)
 
             with fig_col2:
+                if portfolio_value_list[-1] < starting_balance:
+                    color="red"
+                else:
+                    color="green"
+
                 balance_fig = px.line(
-                    balance_list,
-                    title="Balance of Trading bot",
-                    
+                    x = dates[:ticks],
+                    y = portfolio_value_list[:ticks],
+                    color_discrete_sequence=[color]
                 )
-                balance_fig.update_layout(xaxis_title="Balance", showlegend=False)
+
+                balance_fig.update_layout(title="Balance of Trading bot (Cash + Stocks values)",
+                            xaxis_title="Date",
+                            yaxis_title="Balance (USD)"
+                            )
+
                 st.plotly_chart(balance_fig)
 
+                if len(portfolio_value_list) > 1:
+                    st.metric(
+                        label="Cash balance",
+                        value="${:.2f}".format(cash_balance_list[-1]),
+                        delta=round(cash_balance_list[-1]-cash_balance_list[-2], 2)
+                    )
+
+                    st.metric(
+                        label="Stocks value",
+                        value="${:.2f}".format(portfolio_value_list[-1] - cash_balance_list[-1]),
+                        delta=round((portfolio_value_list[-1]-cash_balance_list[-1])-(portfolio_value_list[-2]-cash_balance_list[-2]), 2)
+                    )
+
+                    st.metric(
+                        label="Total Balance",
+                        value="${:.2f}".format(portfolio_value_list[-1]),
+                        delta=round(portfolio_value_list[-1]-portfolio_value_list[-2], 2)
+                    )
+
+            ##### UPDATE PORTFOLIO #####
+            stock_portfolio, cash_balance = update_portfolio(trading_bot_df, stock_portfolio, cash_balance, date=current_date, threshhold=risk_threshhold, only_one_of_each_stock=only_one_of_each_stock)  # Get updated portfolio based on current date
+            
             ticks += 1
             time.sleep(tick_rate)
 

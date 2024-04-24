@@ -92,9 +92,10 @@ def add_predictions_to_df(df, y_pred, folder_name='predicted_data'):
         os.makedirs(folder_name)
         print("Created Folder:", folder_name)
 
-    merged_df.to_csv(os.path.join(folder_name, 'predicted_data.csv'))
+    df = df.rename(columns={'Unnamed: 0': 'Ticker'})
+    df.to_csv(os.path.join(folder_name, 'predicted_data.csv'), index=False)
 
-    print('Predicted data')
+    print('Predicted data using CNN..')
     print("DataFrame saved to:", folder_name)
     print("BUY: 0 | SELL: 1 | HOLD: 2")
     return df
