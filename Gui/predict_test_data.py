@@ -83,7 +83,7 @@ def get_predictions(x, model_path='models/stock_prediction_model_v2.keras'):
 def add_predictions_to_df(df, y_pred, folder_name='predicted_data'):
     for i, row in df.iterrows():
         for j, pred in enumerate(y_pred[i]):
-            column_name = f'Prediction_{j+1}'
+            column_name = f'Prediction_{j}'
             if column_name not in df.columns:
                 df[column_name] = None  # Initialize the column if it doesn't exist
             df.at[i, column_name] = pred
