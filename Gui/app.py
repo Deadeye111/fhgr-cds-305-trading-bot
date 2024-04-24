@@ -1,7 +1,3 @@
-'''
-- src: https://blog.streamlit.io/how-to-build-a-real-time-live-dashboard-with-streamlit/
-'''
-
 # Imports
 import time  # to simulate a real time data, time loop
 import numpy as np  # np mean, np random
