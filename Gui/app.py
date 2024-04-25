@@ -126,7 +126,7 @@ bot_stop = button_col2.button("Stop")
 settings_col1, settings_col2 = control_col2.columns(2)
 # Risk threshhold
 risk_threshhold = settings_col1.slider(label="Risk Threshhold", max_value=1.0, min_value=0.34, step=0.01, value=0.75)
-settings_col1.text("Risk Threshhold = minimum CNN prediction probability\nrequired to execute a trade.")
+settings_col1.text("Risk Threshhold = minimum CNN prediction\nprobability required\nto execute a trade.")
 settings_col2.markdown("")
 settings_col2.markdown("")
 only_one_of_each_stock = settings_col2.checkbox(label="Trading Bot should hold maximum 1 of each stock")
@@ -189,6 +189,9 @@ if bot_start and (start_date < end_date):
                 portfolio_fig = go.Figure(data=[go.Pie(labels=list(stock_portfolio.keys()), values=list(stock_portfolio.values()))])
                 portfolio_fig.update_layout(
                     title="Stock Portfolio Distribution (Quantity per stock)"
+                )
+                portfolio_fig.update_traces(
+                    textinfo='label'
                 )
                 st.plotly_chart(portfolio_fig)
 
