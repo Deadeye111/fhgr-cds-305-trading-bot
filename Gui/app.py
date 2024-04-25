@@ -190,9 +190,10 @@ if bot_start and (start_date < end_date):
                 portfolio_fig.update_layout(
                     title="Stock Portfolio Distribution (Quantity per stock)"
                 )
-                portfolio_fig.update_traces(
-                    textinfo='label'
-                )
+                if len(stock_portfolio.keys())<20:
+                    portfolio_fig.update_traces(
+                        textinfo='label'
+                    )
                 st.plotly_chart(portfolio_fig)
 
             with fig_col2:
