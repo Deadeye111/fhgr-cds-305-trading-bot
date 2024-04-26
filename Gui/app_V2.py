@@ -93,12 +93,12 @@ def update_portfolio(trading_bot_df, stock_portfolio, cash_balance, date, thresh
             # Decide whether to buy, sell, or hold based on threshhold
             if best_action == "Buy" and max_prediction >= threshhold and cash_balance-row['Close'] > 0:
                 if ticker in stock_portfolio:
-                    budget = cash_balance / 10
+                    budget = cash_balance / 3  # bot uses 1/3 of cash balance to buy a stock
                     stock_amount = math.floor(budget // row['Close'])
                     stock_portfolio[ticker] += stock_amount
                     cash_balance -= stock_amount * row['Close']  # Deduct the cost of the stock from cash balance
                 else:
-                    budget = cash_balance / 10
+                    budget = cash_balance / 3
                     stock_amount = math.floor(budget // row['Close'])
                     stock_portfolio[ticker] = stock_amount
                     cash_balance -= stock_amount * row['Close']   
