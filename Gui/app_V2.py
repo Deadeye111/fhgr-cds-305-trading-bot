@@ -69,7 +69,7 @@ def update_portfolio(trading_bot_df, stock_portfolio, cash_balance, date, thresh
         best_action = max(predictions, key=predictions.get)  # Get best action with highest probability
 
         # BUY1 MODE
-        if mode == "buy1":
+        if mode == "buy1perDay":
             # Decide whether to buy, sell, or hold based on threshhold
             if best_action == "Buy" and max_prediction >= threshhold and cash_balance-row['Close'] > 0:
                 if not only_one_of_each_stock and ticker in stock_portfolio:
@@ -89,21 +89,20 @@ def update_portfolio(trading_bot_df, stock_portfolio, cash_balance, date, thresh
                         cash_balance += row['Close']  # Add the selling price to cash balance
 
         # SELL_FRIDAY MODE
-        elif mode == "sell_friday":
+        elif mode == "buybyBudget_SellFriday":
             # Decide whether to buy, sell, or hold based on threshhold
             if best_action == "Buy" and max_prediction >= threshhold and cash_balance-row['Close'] > 0:
                 if ticker in stock_portfolio:
-                    budget = cash_balance / 3  # bot uses 1/3 of cash balance to buy a stock
+                    budget = cash_balance / availablePerDay  # bot uses 1/3 of cash balance to buy a stock
                     stock_amount = math.floor(budget // row['Close'])
                     stock_portfolio[ticker] += stock_amount
                     cash_balance -= stock_amount * row['Close']  # Deduct the cost of the stock from cash balance
                 else:
-                    budget = cash_balance / 3
+                    budget = cash_balance / availablePerDay
                     stock_amount = math.floor(budget // row['Close'])
                     stock_portfolio[ticker] = stock_amount
                     cash_balance -= stock_amount * row['Close']   
 
-            
             conv_date =  datetime.strptime(date, '%Y-%m-%d')
             if conv_date.weekday() == 4:
                 if ticker in stock_portfolio:
@@ -116,10 +115,20 @@ def update_portfolio(trading_bot_df, stock_portfolio, cash_balance, date, thresh
 ########### Start of Gui ###########
 
 sp500_df = get_dataset(path = '../CNN/test_data/^GSPC.csv')
-trading_bot_df = get_dataset(path = 'predicted_data/predicted_data.csv')
+v1 = get_dataset(path = 'predicted_data/predicted_data_V1.csv')
+v2 = get_dataset(path = 'predicted_data/predicted_data_V2.csv')
+
 
 # dashboard title
-st.title("Trading Bot Dashboard")
+st.title("Trading Bot Dashboard 💸")
+
+# Dropdown for selecting the algo
+algo = st.selectbox("Select trading Algo", options=["V1_noSMOTE", "V2_withSMOTE"])
+
+if algo == "V1_noSMOTE":
+    trading_bot_df = v1
+elif algo == "V2_withSMOTE":
+    trading_bot_df = v2
 
 # Determine min and max dates from the DataFrame
 min_date = pd.to_datetime(sp500_df['Date']).min()
@@ -155,10 +164,16 @@ risk_threshhold = settings_col1.slider(label="Risk Threshhold", max_value=1.0, m
 settings_col1.text("Risk Threshhold = minimum CNN prediction\nprobability required\nto execute a trade.")
 settings_col2.markdown("")
 settings_col2.markdown("")
-only_one_of_each_stock = settings_col2.checkbox(label="Trading Bot should hold maximum 1 of each stock")
-settings_col2.markdown("")
-settings_col2.markdown("")
-mode = settings_col2.selectbox("Select trading mode", options=["buy1", "sell_friday"])
+mode = settings_col2.selectbox("Select trading mode", options=["buy1perDay", "buybyBudget_SellFriday"])
+only_one_of_each_stock = False
+if mode == "buy1perDay":
+    settings_col2.markdown("")
+    settings_col2.markdown("")
+    only_one_of_each_stock = settings_col2.checkbox(label="Trading Bot should hold maximum 1 of each stock")
+
+elif mode == "buybyBudget_SellFriday":
+    availablePerDay = settings_col2.number_input("Available budget per day in percent", min_value=1, max_value=10, value=3)
+
 
 # creating a single-element container
 plots_placeholder = st.empty()
