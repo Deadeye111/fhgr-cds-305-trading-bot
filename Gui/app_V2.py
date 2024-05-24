@@ -93,7 +93,7 @@ def update_portfolio(trading_bot_df, stock_portfolio, cash_balance, date, thresh
             # Decide whether to buy, sell, or hold based on threshhold
             if best_action == "Buy" and max_prediction >= threshhold and cash_balance-row['Close'] > 0:
                 if ticker in stock_portfolio:
-                    budget = cash_balance / availablePerDay  # bot uses 1/3 of cash balance to buy a stock
+                    budget = cash_balance / availablePerDay
                     stock_amount = math.floor(budget // row['Close'])
                     stock_portfolio[ticker] += stock_amount
                     cash_balance -= stock_amount * row['Close']  # Deduct the cost of the stock from cash balance
@@ -139,7 +139,7 @@ elif algo == "V3_withSMOTE":
 # Sort for best actions per day
 trading_bot_df['max_prediction'] = trading_bot_df[['Prediction_0', 'Prediction_1', 'Prediction_2']].max(axis=1)  # Create a new column with the max value of predictions
 trading_bot_df = trading_bot_df.sort_values(by=['Date', 'max_prediction'], ascending=[True, False])  # Sort by date and max_prediction
-trading_bot_df = trading_bot_df.drop(columns=['max_prediction'])  # Drop the temporary max_prediction column if no longer needed
+trading_bot_df = trading_bot_df.drop(columns=['max_prediction'])  # Drop the temporary max_prediction column
 
 # Determine min and max dates from the DataFrame
 min_date = pd.to_datetime(sp500_df['Date']).min()
@@ -183,7 +183,7 @@ if mode == "buy1perDay":
     only_one_of_each_stock = settings_col2.checkbox(label="Trading Bot should hold maximum 1 of each stock")
 
 elif mode == "buybyBudget_SellFriday":
-    availablePerDay = settings_col2.number_input("Available budget per day in percent", min_value=1, max_value=10, value=3)
+    availablePerDay = settings_col2.slider("Available budget per day (x/10)", min_value=1, max_value=10, value=3)
 
 
 # creating a single-element container
