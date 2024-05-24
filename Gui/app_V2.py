@@ -115,7 +115,7 @@ def update_portfolio(trading_bot_df, stock_portfolio, cash_balance, date, thresh
 ########### Start of Gui ###########
 
 sp500_df = get_dataset(path = '../CNN/test_data/^GSPC.csv')
-v1 = get_dataset(path = 'predicted_data/predicted_data_V1.csv')
+v1 = get_dataset(path = 'predicted_data/predicted_data.csv')
 v2 = get_dataset(path = 'predicted_data/predicted_data_V2.csv')
 v3 = get_dataset(path = 'predicted_data/predicted_data_V3.csv')
 
@@ -127,11 +127,19 @@ st.title("Trading Bot Dashboard 💸")
 algo = st.selectbox("Select trading Algo", options=["V1_noSMOTE", "V2_withSMOTE", "V3_withSMOTE"])
 
 if algo == "V1_noSMOTE":
+    # Set trading dataframe
     trading_bot_df = v1
 elif algo == "V2_withSMOTE":
+    # Set trading dataframe
     trading_bot_df = v2
 elif algo == "V3_withSMOTE":
+    # Set trading dataframe
     trading_bot_df = v3
+
+# Sort for best actions per day
+trading_bot_df['max_prediction'] = trading_bot_df[['Prediction_0', 'Prediction_1', 'Prediction_2']].max(axis=1)  # Create a new column with the max value of predictions
+trading_bot_df = trading_bot_df.sort_values(by=['Date', 'max_prediction'], ascending=[True, False])  # Sort by date and max_prediction
+trading_bot_df = trading_bot_df.drop(columns=['max_prediction'])  # Drop the temporary max_prediction column if no longer needed
 
 # Determine min and max dates from the DataFrame
 min_date = pd.to_datetime(sp500_df['Date']).min()
