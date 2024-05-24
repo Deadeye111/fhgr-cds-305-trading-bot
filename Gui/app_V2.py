@@ -115,7 +115,7 @@ def update_portfolio(trading_bot_df, stock_portfolio, cash_balance, date, thresh
 ########### Start of Gui ###########
 
 sp500_df = get_dataset(path = '../CNN/test_data/^GSPC.csv')
-v1 = get_dataset(path = 'predicted_data/predicted_data.csv')
+v1 = get_dataset(path = 'predicted_data/predicted_data_V1.csv')
 v2 = get_dataset(path = 'predicted_data/predicted_data_V2.csv')
 v3 = get_dataset(path = 'predicted_data/predicted_data_V3.csv')
 
