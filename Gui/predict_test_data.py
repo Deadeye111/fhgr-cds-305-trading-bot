@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 keras.backend.set_image_data_format('channels_first')
 
 
-def preprocess_data(merged_df, scaler_path='models/scaler_V3_Model2_mitSmote.pkl'):
+def preprocess_data(merged_df, scaler_path):
     merged_df = merged_df.loc[:, 'Open':'bb_bbl_21']
 
     if os.path.exists(scaler_path):
@@ -67,7 +67,7 @@ def plot_images(x, save_path="test_image.png"):
     plt.savefig(save_path)
 
 
-def get_predictions(x, model_path='models/stock_prediction_model_V3_Model2_mitSmote.keras'):
+def get_predictions(x, model_path):
     if os.path.exists(model_path):
         model = keras.models.load_model(model_path)
         print(model.summary())
@@ -80,7 +80,8 @@ def get_predictions(x, model_path='models/stock_prediction_model_V3_Model2_mitSm
     return y_pred
 
 
-def add_predictions_to_df(df, y_pred, folder_name='predicted_data'):
+def add_predictions_to_df(df, y_pred, folder_name='predicted_data', file_name='predicted_data.csv'):
+    print("Creating Dataframe with predictions..")
     for i, row in df.iterrows():
         for j, pred in enumerate(y_pred[i]):
             column_name = f'Prediction_{j}'
@@ -94,22 +95,23 @@ def add_predictions_to_df(df, y_pred, folder_name='predicted_data'):
 
     df = df.rename(columns={'Unnamed: 0': 'Ticker'})
     df = df[['Ticker', 'Date', 'Close', 'Prediction_0', 'Prediction_1', 'Prediction_2']]
-    df.to_csv(os.path.join(folder_name, 'predicted_data_V3.csv'), index=False)
+    df.to_csv(os.path.join(folder_name, file_name), index=False)
 
-    print('Predicted data using CNN..')
     print("DataFrame saved to:", folder_name)
     print("BUY: 0 | SELL: 1 | HOLD: 2")
     return df
 
 
+# Load data
 merged_df = pd.read_csv('merged_data/merged_data_large.csv')
-feature_indices = np.loadtxt('models/selected_features_V3_Model2_mitSmote.txt', dtype=int).tolist()
+feature_indices = np.loadtxt('models/selected_features_V1_Model1_ohneSmote.txt', dtype=int).tolist()
 #feature_indices = [3, 4, 26, 27, 28, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 76, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 109, 110, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 139, 140, 142, 143, 145, 146, 148, 149, 151, 152, 154, 155, 157, 158, 160, 161]
 
-preprocessed_data = preprocess_data(merged_df)
+# Preprocessing and prediction
+preprocessed_data = preprocess_data(merged_df, scaler_path='models/scaler_V1_Model1_ohneSmote.pkl')
 preprocessed_data = select_features(preprocessed_data, feature_indices)
 image_data = image_creation(preprocessed_data, number_of_features=len(feature_indices))
 plot_images(image_data)
-y_pred = get_predictions(image_data)
-predicted_df = add_predictions_to_df(merged_df, y_pred)
+y_pred = get_predictions(image_data, model_path='models/stock_prediction_model_V1_Model1_ohneSmote.keras')
+predicted_df = add_predictions_to_df(merged_df, y_pred, file_name='predicted_data_V1.csv')
 print(predicted_df)

@@ -284,7 +284,7 @@ if bot_start and (start_date < end_date):
                     )
 
                     st.metric(
-                        label="Total Balance",
+                        label="Total Portfolio Value",
                         value="${:.2f}".format(portfolio_value_list[-1]),
                         delta=round(portfolio_value_list[-1]-portfolio_value_list[-2], 2)
                     )
