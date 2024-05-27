@@ -56,6 +56,8 @@ def update_portfolio(trading_bot_df, stock_portfolio, cash_balance, date, thresh
     df_filtered_by_date = trading_bot_df[trading_bot_df['Date'] == date]  # Filter DataFrame for the given date
     
     # Iterate over rows in the DataFrame
+
+
     for index, row in df_filtered_by_date.iterrows():
         ticker = row['Ticker']
         
@@ -115,6 +117,9 @@ def update_portfolio(trading_bot_df, stock_portfolio, cash_balance, date, thresh
 ########### Start of Gui ###########
 
 sp500_df = get_dataset(path = '../CNN/test_data/^GSPC.csv')
+# Return for each day
+sp500_df['Return'] = sp500_df['Close'].pct_change() * 100
+
 # stocks
 v1 = get_dataset(path = 'predicted_data/predicted_data_V1.csv')
 v2 = get_dataset(path = 'predicted_data/predicted_data_V2.csv')
@@ -208,6 +213,8 @@ if bot_start and (start_date < end_date):
     
     # Initialization of all important variables
     portfolio_value_list = []  # List with portfolio value per tick
+    portfolio_return_list = []  # List with portfolio return per tick
+    index_return_list = []  # List with index return per tick
     cash_balance_list = []  # List with cash balance per tick
     ticks = 1  # Variable to filter dataframes (every iteration: ticks += 1)
     stock_portfolio = {}  # stock portfolio: key = ticker, value = quantity
@@ -227,6 +234,9 @@ if bot_start and (start_date < end_date):
         ##### GET CURRENT BALANCE #####
         # portfolio_value_list = stocks + cash
         portfolio_value_list.append(get_current_portfolio_value(trading_bot_df, stock_portfolio, cash_balance, date=current_date))  # calculate balance (current porfolio value)
+        if ticks >= 2:
+            portfolio_return_list.append((portfolio_value_list[-1] - portfolio_value_list[-2]) / portfolio_value_list[-2]*100)  # calculate return
+            index_return_list.append(sp500_stream_df['Return'].iloc[-1])  # calculate index return
 
         with plots_placeholder.container():
             
@@ -301,23 +311,52 @@ if bot_start and (start_date < end_date):
                         value="${:.2f}".format(portfolio_value_list[-1]),
                         delta=round(portfolio_value_list[-1]-portfolio_value_list[-2], 2)
                     )
-
+                    return_on_inverstement_i = sp500_stream_df['Close'].iloc[-1]/(sp500_stream_df['Close'].iloc[0])*100-100
                     st.metric(
                         label="Index Performance",
-                        value="{:.2f} %".format(sp500_stream_df['Close'].iloc[-1]/(sp500_stream_df['Close'].iloc[0])*100-100)
+                        value="{:.2f} %".format(return_on_inverstement_i)
                     )
 
+                    return_on_inverstement_p = portfolio_value_list[-1]/(portfolio_value_list[0])*100-100
                     st.metric(
                         label="Bot Performance",
-                        value="{:.2f} %".format(portfolio_value_list[-1]/(portfolio_value_list[0])*100-100)
+                        value="{:.2f} %".format(return_on_inverstement_p)
                     )
+
 
             ##### UPDATE PORTFOLIO #####
             stock_portfolio, cash_balance = update_portfolio(trading_bot_df, stock_portfolio, cash_balance, date=current_date, threshhold=risk_threshhold, only_one_of_each_stock=only_one_of_each_stock, mode=mode)  # Get updated portfolio based on current date
             
             ticks += 1
             time.sleep(tick_rate)
-
+    st.markdown("---")
+    st.write("Performance Report")
+    report_col1 , report_col2, report_col3, report_col4 = st.columns(4)
+    with report_col1:
+        st.metric(label="Standard Deviation S&P500",
+                  value="{:.2f} %".format(np.std(index_return_list)) 
+                )
+        
+    with report_col2:
+        riskfree_rate = 4
+        st.metric(label="Sharpe Ration S&P500",
+                  value="{:.2f}".format((return_on_inverstement_i-riskfree_rate)/ np.std(index_return_list)),
+                  help = 'Riskfree Rate US 2023 = 4%' 
+                )
+        
+    with report_col3:
+        st.metric(
+            label="Standard Deviation Bot",
+                value="{:.2f} %".format(np.std(portfolio_return_list)) 
+                )
+        
+    with report_col4:
+        riskfree_rate = 4
+        st.metric(label="Sharpe Ration Bot",
+                  value="{:.2f}".format((return_on_inverstement_p-riskfree_rate)/ np.std(portfolio_return_list)),
+                  help = 'Riskfree Rate US 2023 = 4%' 
+                )   
+        
 elif end_date < start_date:
     error_placeholder.error("End date cannot be before start date.")
 
