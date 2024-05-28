@@ -177,7 +177,7 @@ bot_settings_col1, bot_settings_col2 = st.columns(2)
 starting_balance = bot_settings_col1.number_input("Select a starting balance ($)", min_value=1000, max_value=1000000)
 
 # tick rate
-tick_rate = bot_settings_col2.number_input("Select tickrate (seconds)", min_value=0.2, max_value=1.0, step=0.1, value=0.4)
+tick_rate = bot_settings_col2.number_input("Select tickrate (seconds)", min_value=0.0, max_value=1.0, step=0.1, value=0.4)
 
 st.markdown("---")
 
