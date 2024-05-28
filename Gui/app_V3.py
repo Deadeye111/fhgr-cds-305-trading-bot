@@ -97,13 +97,15 @@ def update_portfolio(trading_bot_df, stock_portfolio, cash_balance, date, thresh
                 if ticker in stock_portfolio:
                     budget = cash_balance / availablePerDay
                     stock_amount = math.floor(budget // row['Close'])
-                    stock_portfolio[ticker] += stock_amount
-                    cash_balance -= stock_amount * row['Close']  # Deduct the cost of the stock from cash balance
+                    if stock_amount > 0:  # Buy only if amount is greater than 0
+                        stock_portfolio[ticker] += stock_amount
+                        cash_balance -= stock_amount * row['Close']  # Deduct the cost of the stock from cash balance
                 else:
                     budget = cash_balance / availablePerDay
                     stock_amount = math.floor(budget // row['Close'])
-                    stock_portfolio[ticker] = stock_amount
-                    cash_balance -= stock_amount * row['Close']   
+                    if stock_amount > 0:  # Buy only if amount is greater than 0
+                        stock_portfolio[ticker] = stock_amount
+                        cash_balance -= stock_amount * row['Close']  # Deduct the cost of the stock from cash balance
 
             conv_date =  datetime.strptime(date, '%Y-%m-%d')
             if conv_date.weekday() == 4:
@@ -272,6 +274,10 @@ if bot_start and (start_date < end_date):
                     portfolio_fig.update_traces(
                         textinfo='label'
                     )
+                else:
+                    portfolio_fig.update_traces(
+                        textinfo='none'
+                    )
                 st.plotly_chart(portfolio_fig)
 
             with fig_col2:
@@ -286,7 +292,7 @@ if bot_start and (start_date < end_date):
                     color_discrete_sequence=[color]
                 )
 
-                balance_fig.update_layout(title="Balance of Trading bot (Cash + Stocks values)",
+                balance_fig.update_layout(title="Balance of Trading bot (Cash + Stocks/Crypto value)",
                             xaxis_title="Date",
                             yaxis_title="Balance (USD)"
                             )
